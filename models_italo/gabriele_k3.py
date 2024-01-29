@@ -29,40 +29,44 @@ class UNetSpace(nn.Module):
 
         flat_model = type_mode([  # 18, 64²
             nn.Sequential(
-                Conv2d(1, n_filters, 3, stride=1, padding=1), nn.PReLU(),  # 10, 64²
-                Conv2d(n_filters, n_filters, 3, stride=2, padding=1), nn.PReLU(),  # 10, 32²
+                Conv2d(1, n_filters, 3, stride=1, padding=1), nn.PReLU(),  # 64²
+                Conv2d(n_filters, n_filters, 3, stride=2, padding=1), nn.PReLU(),  #  32²
             ),
             nn.Sequential(
-                Conv2d(n_filters, (n_filters * 2), 3, stride=1, padding=1), nn.PReLU(),  # 10, 32²
-                Conv2d((n_filters*2), (n_filters*2), 3, stride=2, padding=1), nn.PReLU(),  # 10, 16²
+                Conv2d(n_filters, (n_filters * 2), 3, stride=1, padding=1), nn.PReLU(),  #  32²
+                Conv2d((n_filters*2), (n_filters*2), 3, stride=2, padding=1), nn.PReLU(),  # 16²
             ),
             nn.Sequential(
-                Conv2d((n_filters*2), (n_filters*4), 3, stride=1, padding=1), nn.PReLU(),  # 10, 16²
-                Conv2d((n_filters*4), (n_filters*4), 3, stride=2, padding=1), nn.PReLU(),  # 10, 8²
+                Conv2d((n_filters*2), (n_filters*4), 3, stride=1, padding=1), nn.PReLU(),  # 16²
+                Conv2d((n_filters*4), (n_filters*4), 3, stride=2, padding=1), nn.PReLU(),  # 8²
             ),
             nn.Sequential(
-                Conv2d((n_filters*4), (n_filters*8), 3, stride=1, padding=1), nn.PReLU(),  # 10, 8²
-                Conv2d((n_filters*8), (n_filters*8), 3, stride=2, padding=1), nn.PReLU(),  # 10, 4²
+                Conv2d((n_filters*4), (n_filters*8), 3, stride=1, padding=1), nn.PReLU(),  # 8²
+                Conv2d((n_filters*8), (n_filters*8), 3, stride=2, padding=1), nn.PReLU(),  # 4²
             ),
             nn.Sequential(
                 Conv2d((n_filters*8), 512, 3, stride=1, padding=1), nn.PReLU(),  # 10, 4
             ),
 
         ], [
-            nn.Sequential(  # 10, 4
+            nn.Sequential(  #4
                 nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),  # 8
                 nn.Conv2d(512, n_filters*4, kernel_size=3, stride=1, padding=1), nn.PReLU()
             ),
-            nn.Sequential(  # 10, 8
+            nn.Sequential(  #8
                 nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),  # 8
                 nn.Conv2d(mul_fact*(n_filters*4), n_filters * 2, kernel_size=3, stride=1, padding=1), nn.PReLU()
             ),
-            nn.Sequential(  # 10, 510²
+            nn.Sequential(  # 16
                 nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),  # 8
                 nn.Conv2d(mul_fact * (n_filters * 2), n_filters, kernel_size=3, stride=1, padding=1), nn.PReLU()
             ),
-            nn.Sequential(  # 10, 510²a
+            nn.Sequential(  # 32
                 nn.ConvTranspose2d(mul_fact *(n_filters), 1, 4, stride=2, padding=1),
+                
+                #no conv trans to get rid of checker pattern on first block
+                #nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),  # 8
+                #nn.Conv2d(mul_fact *(n_filters), 1, kernel_size=3, stride=1, padding=1), nn.PReLU(),
                 nn.Sigmoid()
             )
 

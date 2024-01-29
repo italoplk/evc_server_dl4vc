@@ -12,8 +12,7 @@ from dataset import normalize, denormalize
 # from torchvision.utils import save_image
 # from models import ModelCNR, ModelUnet, ModelConv, ModelConvUnet
 
-from models_italo.gabriele_k3 import UNetSpace
-#from models_italo.kerasLike_k4 import UNetSpace
+
 #python server.py --model ../saved_models/bestMSE_gabriele3k_skip_fullEpchsUnet3k_64_0.0001_50.pth.tar --bit-depth 10 --port 5032
 
 # You can test this by issuing a "cat server_input_64x64.yuv | nc -u localhost 8080 > rcvd_8bpp.yuv"
@@ -41,9 +40,18 @@ if __name__ == '__main__':
     parser.add_argument('--debug', type=bool, default=False,
                         help='dumps the received and sent patches as png')
     
+    parser.add_argument('--kernels', type=str, default='3',
+                        help='4 for keras implementation, 3 for gabriele')
 
     args = parser.parse_args()
 
+    if args.kernels == '3':
+        from models_italo.gabriele_k3 import UNetSpace
+
+    elif args.kernels == '4': 
+        from models_italo.kerasLike_k4 import UNetSpace
+    else:
+        print("ERROR UKNOWN MODEL TYPE (KERNELS)")
 
     # Checking provided context size
     if args.context_size not in (32, 64, 128):
@@ -86,7 +94,10 @@ if __name__ == '__main__':
     checkpoint = torch.load(args.model, map_location=torch.device('cpu'))
     #for key in checkpoint:
       #  print(key)
-    model.load_state_dict(checkpoint['state_dict'])
+    if 'state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['state_dict'])
+    else: 
+        model.load_state_dict(checkpoint)
     # print(f'Model {args.model} loaded')
     
     
