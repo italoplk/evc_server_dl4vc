@@ -11,7 +11,8 @@ import torch
 from dataset import normalize, denormalize
 import skimage.measure    
 from torchsummary import summary
-
+from collections import OrderedDict
+from torch.nn.utils import prune
 # from torchvision.utils import save_image
 # from models import ModelCNR, ModelUnet, ModelConv, ModelConvUnet
 
@@ -21,6 +22,31 @@ from torchsummary import summary
 # You can test this by issuing a "cat server_input_64x64.yuv | nc -u localhost 8080 > rcvd_8bpp.yuv"
 
 # cat ./refBlock.yuv | nc -u 127.0.0.1 8032 > rcvd_8bpp.yuv
+
+def load_model(checkpoint_path, model):
+    
+
+    checkpoint = torch.load(checkpoint_path)["state_dict"]
+
+    correct_checkpoint = OrderedDict()
+    for k in checkpoint:
+        correct_checkpoint[k.replace("module.", "")] = checkpoint[k]
+
+    try:
+        model.load_state_dict(correct_checkpoint)
+    except:
+        for module in filter(lambda m: type(m) in [torch.nn.Conv2d], model.modules()):
+            prune.identity(module, "weight")
+
+        try:
+            model.load_state_dict(correct_checkpoint)
+
+            for module in filter(lambda m: type(m) in [torch.nn.Conv2d], model.modules()):
+                prune.remove(module, "weight")
+        except:
+            raise RuntimeError()
+
+    return model
 
 
 if __name__ == '__main__':
@@ -52,15 +78,19 @@ if __name__ == '__main__':
 
     parser.add_argument('--n-channels', type=int, default=32,
                         help='number of channels')
+    parser.add_argument('--prune', type=bool, default=False,
+                        help='define if the loaded model has been pruned')
+    
+
 
     args = parser.parse_args()
 
     if args.arch == '3':
         from models_italo.gabriele_k3 import NNmodel
         print("Using gabrieleK3")
-    elif args.arch == 'isometric':
-        from models_italo.gabriele_k3_Isometric import NNmodel
-        print("Using isometric")
+    elif args.arch == '3l':
+        from models_italo.gabriele_k3_shrink_NoDoubles_4L import NNmodel
+        print("Using 3L")
     elif args.arch == 'inverseStride':
         from models_italo.gabriele_k3_InverseStride import NNmodel
         print("Using inverseStride")
@@ -84,7 +114,7 @@ if __name__ == '__main__':
 
 
     # Checking provided context size
-    if args.context_size not in (32, 64, 128):
+    if args.context_size not in (16, 32, 64, 128):
         print("ERROR Unsupported context size %d" %(args.context_size))
         sys.exit(1)
         
@@ -115,12 +145,15 @@ if __name__ == '__main__':
  
     summary(model, (1, 64, 64))
 
-    checkpoint = torch.load(args.model, map_location=torch.device('cpu'))
+    if args.prune:
+        load_model(args.model, model)
+    else:
+        checkpoint = torch.load(args.model, map_location=torch.device('cpu'))
 
-    if 'state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['state_dict'])
-    else: 
-        model.load_state_dict(checkpoint)
+        if 'state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['state_dict'])
+        else: 
+            model.load_state_dict(checkpoint)
 
     
     
